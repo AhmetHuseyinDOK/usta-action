@@ -1,9 +1,11 @@
 import * as core from "@actions/core";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { unlink, writeFile, stat } from "fs/promises";
+import { unlink, writeFile, stat, mkdir, access } from "fs/promises";
 import { createWriteStream } from "fs";
 import { spawn } from "child_process";
+import { join } from "path";
+import type { OutputCapture } from "./output-capture";
 
 const execAsync = promisify(exec);
 
@@ -21,6 +23,14 @@ export type ClaudeOptions = {
   claudeEnv?: string;
   fallbackModel?: string;
   timeoutMinutes?: string;
+  enableRawJsonLogs?: boolean;
+  outputCapture?: OutputCapture;
+  logContext?: {
+    specName: string;
+    taskTitle: string;
+    taskId: string;
+    isTest: boolean;
+  };
 };
 
 type PreparedConfig = {
@@ -113,6 +123,36 @@ export function prepareRunConfig(
   };
 }
 
+// Setup logging directory and return log file path
+async function setupLogFile(logContext: {
+  specName: string;
+  taskTitle: string;
+  taskId: string;
+  isTest: boolean;
+}) {
+  const logDir = join(process.cwd(), ".usta", ".logs", logContext.specName);
+
+  // Create safe filename from task title
+  const safeTaskTitle = logContext.taskTitle
+    .replace(/[^a-zA-Z0-9\s\-_]/g, "") // Remove special chars
+    .replace(/\s+/g, "_") // Replace spaces with underscores
+    .substring(0, 100); // Limit length
+
+  const logFileName = logContext.isTest
+    ? `${safeTaskTitle}_test.log`
+    : `${safeTaskTitle}.log`;
+  const logPath = join(logDir, logFileName);
+
+  // Create log directory if it doesn't exist
+  try {
+    await access(logDir);
+  } catch {
+    await mkdir(logDir, { recursive: true });
+  }
+
+  return logPath;
+}
+
 export async function runClaude(promptPath: string, options: ClaudeOptions) {
   const config = prepareRunConfig(promptPath, options);
 
@@ -172,8 +212,20 @@ export async function runClaude(promptPath: string, options: ClaudeOptions) {
     pipeStream.destroy();
   });
 
+  // Setup raw JSON logging if enabled
+  let logStream: NodeJS.WritableStream | null = null;
+  if (options.enableRawJsonLogs && options.logContext) {
+    const logPath = await setupLogFile(options.logContext);
+    logStream = createWriteStream(logPath, { flags: "a" }); // Append mode
+    logStream.write(
+      `\n=== ${new Date().toISOString()} - ${options.logContext.isTest ? "TEST" : "TASK"} ${options.logContext.taskId} ===\n`,
+    );
+  }
+
   // Capture output for parsing execution metrics
   let output = "";
+  const outputCaptureInstance = options.outputCapture || null;
+
   claudeProcess.stdout.on("data", (data) => {
     const text = data.toString();
 
@@ -182,19 +234,44 @@ export async function runClaude(promptPath: string, options: ClaudeOptions) {
     lines.forEach((line: string, index: number) => {
       if (line.trim() === "") return;
 
+      // Log raw JSON to file if enabled
+      if (logStream) {
+        logStream.write(line + "\n");
+      }
+
       try {
         // Check if this line is a JSON object
         const parsed = JSON.parse(line);
         const prettyJson = JSON.stringify(parsed, null, 2);
-        process.stdout.write(prettyJson);
-        if (index < lines.length - 1 || text.endsWith("\n")) {
-          process.stdout.write("\n");
+
+        if (outputCaptureInstance) {
+          outputCaptureInstance.write(prettyJson);
+          if (index < lines.length - 1 || text.endsWith("\n")) {
+            outputCaptureInstance.write("\n");
+          }
+        } else {
+          process.stdout.write(prettyJson);
+          if (index < lines.length - 1 || text.endsWith("\n")) {
+            process.stdout.write("\n");
+          }
         }
       } catch (e) {
         // Not a JSON object, print as is
-        process.stdout.write(line);
-        if (index < lines.length - 1 || text.endsWith("\n")) {
-          process.stdout.write("\n");
+        if (outputCaptureInstance) {
+          outputCaptureInstance.write(line);
+          if (index < lines.length - 1 || text.endsWith("\n")) {
+            outputCaptureInstance.write("\n");
+          }
+        } else {
+          process.stdout.write(line);
+          if (index < lines.length - 1 || text.endsWith("\n")) {
+            process.stdout.write("\n");
+          }
+        }
+
+        // Also log non-JSON to file if enabled
+        if (logStream) {
+          logStream.write(`[NON-JSON] ${line}\n`);
         }
       }
     });
@@ -288,6 +365,12 @@ export async function runClaude(promptPath: string, options: ClaudeOptions) {
     await unlink(PIPE_PATH);
   } catch (e) {
     // Ignore errors during cleanup
+  }
+
+  // Close log stream if it was opened
+  if (logStream) {
+    logStream.write(`=== END ${new Date().toISOString()} ===\n\n`);
+    logStream.end();
   }
 
   // Set conclusion based on exit code

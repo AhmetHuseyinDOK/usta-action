@@ -2,19 +2,22 @@
 
 ## Core Changes
 
-- [  ] 1. Update trigger detection for PR descriptions
+- [ ] 1. Update trigger detection for PR descriptions
+
   - Modify `src/github/validation/trigger.ts` to parse PR body text
   - Add `@usta execute <file_path>` pattern matching
   - Support multiple triggers in PR descriptions
   - _Requirements: 1.1, 1.2, 1.3_
 
 - [ ] 2. Add simple file finder
+
   - Create basic file resolution with exact path matching
   - Add fuzzy matching for partial paths
   - Return null if file not found or ambiguous
   - _Requirements: 2.1, 2.2, 2.3_
 
 - [ ] 3. Simplify Claude Code execution
+
   - Update `src/create-prompt/index.ts` to pass file path only
   - Remove complex prompt generation logic
   - Execute with `/execute <file_path>` command
@@ -28,15 +31,18 @@
 ## Cleanup
 
 - [ ] 5. Remove issue support
+
   - Remove issue event handling from triggers
   - Clean up issue-related code paths
   - _Requirements: 6.1_
 
 - [ ] 6. Remove assignee/label triggers
+
   - Remove assignee and label trigger logic
   - _Requirements: 6.2_
 
 - [ ] 7. Remove custom instructions
+
   - Remove instruction parsing and processing
   - _Requirements: 6.3_
 
@@ -48,6 +54,7 @@
 ## Testing
 
 - [ ] 9. Add basic tests
+
   - Test trigger parsing for PR descriptions
   - Test file resolution logic
   - Test simplified execution flow

@@ -82,6 +82,11 @@ inputs:
     required: false
     default: "false"
 
+  enable_logging:
+    description: "Enable raw JSON logging of Claude Code execution to .usta/.logs directory"
+    required: false
+    default: "false"
+
 outputs:
   conclusion:
     description: "Execution status of Claude Code ('success' or 'failure')"
@@ -139,6 +144,7 @@ runs:
         INPUT_CLAUDE_ENV: ${{ inputs.claude_env }}
         INPUT_FALLBACK_MODEL: ${{ inputs.fallback_model }}
         INPUT_SPEC_NAME: ${{ inputs.spec_name }}
+        INPUT_ENABLE_LOGGING: ${{ inputs.enable_logging }}
 
         # Provider configuration
         ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}

@@ -1,0 +1,240 @@
+name: USTA PR Trigger
+description: Execute USTA specs when @usta is mentioned in PR comments or descriptions
+
+on:
+  issue_comment:
+    types: [created, edited]
+  pull_request:
+    types: [opened, edited, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  usta-execution:
+    # Only run on PRs and when @usta is mentioned
+    if: |
+      github.event.pull_request != null && (
+        contains(github.event.pull_request.body, '@usta') ||
+        (github.event.comment != null && contains(github.event.comment.body, '@usta'))
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 3660
+    
+    steps:
+      - name: Extract spec name from trigger
+        id: parse-trigger
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.comment?.body || context.payload.pull_request?.body || '';
+            const match = body.match(/@usta\s+([a-zA-Z0-9_-]+)/);
+            
+            if (!match) {
+              core.setFailed('No valid @usta <specname> pattern found');
+              return;
+            }
+            
+            const specName = match[1];
+            core.setOutput('spec_name', specName);
+            core.setOutput('pr_number', context.payload.pull_request?.number || context.payload.issue?.number);
+            core.setOutput('pr_branch', context.payload.pull_request?.head?.ref || '');
+            core.setOutput('is_fork', context.payload.pull_request?.head?.repo?.full_name !== context.repo.owner + '/' + context.repo.repo);
+            
+            console.log(`Extracted spec name: ${specName}`);
+            console.log(`PR number: ${context.payload.pull_request?.number || context.payload.issue?.number}`);
+            console.log(`PR branch: ${context.payload.pull_request?.head?.ref || 'unknown'}`);
+
+      - name: Check for fork repository
+        id: check-fork
+        if: steps.parse-trigger.outputs.is_fork == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `⚠️ **USTA Execution Skipped**
+            
+            Cannot execute USTA on pull requests from fork repositories due to security restrictions.
+            
+            **Requested spec:** \`${{ steps.parse-trigger.outputs.spec_name }}\`
+            
+            To run USTA, please:
+            1. Push your changes to a branch in the main repository, or
+            2. Ask a maintainer to run USTA manually`;
+            
+            await github.rest.issues.createComment({
+              issue_number: ${{ steps.parse-trigger.outputs.pr_number }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+            
+            core.setFailed('Cannot execute on fork repository');
+
+      - name: Post initial response
+        id: initial-response
+        if: steps.parse-trigger.outputs.is_fork != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `🤖 **Tamamdır hacım bi bakayım.**
+            
+            **Spec:** \`${{ steps.parse-trigger.outputs.spec_name }}\`
+            **Status:** 🔍 Checking spec and starting execution...
+            
+            ---
+            *This comment will be updated with progress as tasks are executed.*`;
+            
+            const response = await github.rest.issues.createComment({
+              issue_number: ${{ steps.parse-trigger.outputs.pr_number }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+            
+            core.setOutput('comment_id', response.data.id);
+            console.log(`Created initial comment with ID: ${response.data.id}`);
+
+      - name: Checkout PR branch
+        if: steps.parse-trigger.outputs.is_fork != 'true'
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ steps.parse-trigger.outputs.pr_branch }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        if: steps.parse-trigger.outputs.is_fork != 'true'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Validate spec exists
+        id: validate-spec
+        if: steps.parse-trigger.outputs.is_fork != 'true'
+        run: |
+          SPEC_PATH=".usta/specs/${{ steps.parse-trigger.outputs.spec_name }}"
+          
+          if [ ! -d "$SPEC_PATH" ]; then
+            echo "spec_exists=false" >> $GITHUB_OUTPUT
+            echo "error_message=Spec directory not found: $SPEC_PATH" >> $GITHUB_OUTPUT
+          elif [ ! -f "$SPEC_PATH/tasks.md" ]; then
+            echo "spec_exists=false" >> $GITHUB_OUTPUT
+            echo "error_message=tasks.md not found in spec: $SPEC_PATH" >> $GITHUB_OUTPUT
+          else
+            echo "spec_exists=true" >> $GITHUB_OUTPUT
+            echo "Spec validated: $SPEC_PATH"
+          fi
+
+      - name: Update comment with spec validation error
+        if: steps.parse-trigger.outputs.is_fork != 'true' && steps.validate-spec.outputs.spec_exists == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `🤖 **Tamamdır hacım bi bakayım.**
+            
+            **Spec:** \`${{ steps.parse-trigger.outputs.spec_name }}\`
+            **Status:** ❌ **Error** - ${{ steps.validate-spec.outputs.error_message }}
+            
+            **Available specs:**
+            ${await (async () => {
+              try {
+                const { data: tree } = await github.rest.git.getTree({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tree_sha: context.sha,
+                  recursive: true
+                });
+                
+                const specs = tree.tree
+                  .filter(item => item.path && item.path.startsWith('.usta/specs/') && item.path.endsWith('/tasks.md'))
+                  .map(item => item.path.replace('.usta/specs/', '').replace('/tasks.md', ''))
+                  .sort();
+                
+                return specs.length > 0 ? specs.map(spec => \`- \\\`\${spec}\\\`\`).join('\\n') : '- No specs found';
+              } catch (error) {
+                return '- Error listing specs';
+              }
+            })()}
+            
+            ---
+            *Execution stopped due to validation error.*`;
+            
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: ${{ steps.initial-response.outputs.comment_id }},
+              body: comment
+            });
+            
+            core.setFailed('Spec validation failed');
+
+      - name: Execute USTA
+        if: steps.parse-trigger.outputs.is_fork != 'true' && steps.validate-spec.outputs.spec_exists == 'true'
+        uses: ./
+        with:
+          spec_name: ${{ steps.parse-trigger.outputs.spec_name }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          timeout_minutes: "3600"
+          enable_logging: "true"
+        env:
+          USTA_PR_MODE: "true"
+          USTA_PR_NUMBER: ${{ steps.parse-trigger.outputs.pr_number }}
+          USTA_PR_BRANCH: ${{ steps.parse-trigger.outputs.pr_branch }}
+          USTA_COMMENT_ID: ${{ steps.initial-response.outputs.comment_id }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update comment on success
+        if: success() && steps.parse-trigger.outputs.is_fork != 'true' && steps.validate-spec.outputs.spec_exists == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `🤖 **Tamamdır hacım bi bakayım.**
+            
+            **Spec:** \`${{ steps.parse-trigger.outputs.spec_name }}\`
+            **Status:** ✅ **Completed Successfully**
+            
+            🎉 All tasks have been completed and changes have been pushed to this PR branch.
+            
+            **Next steps:**
+            - Review the changes in this PR
+            - Run any additional tests if needed
+            - Merge when ready
+            
+            ---
+            *USTA execution completed at $(date)*`;
+            
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: ${{ steps.initial-response.outputs.comment_id }},
+              body: comment
+            });
+
+      - name: Update comment on failure
+        if: failure() && steps.parse-trigger.outputs.is_fork != 'true' && steps.validate-spec.outputs.spec_exists == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `🤖 **Tamamdır hacım bi bakayım.**
+            
+            **Spec:** \`${{ steps.parse-trigger.outputs.spec_name }}\`
+            **Status:** ❌ **Failed**
+            
+            The USTA execution encountered an error. Please check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+            
+            **Common issues:**
+            - Spec file syntax errors
+            - Task implementation failures
+            - Test validation failures
+            - Authentication or permission issues
+            
+            ---
+            *USTA execution failed at $(date)*`;
+            
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: ${{ steps.initial-response.outputs.comment_id }},
+              body: comment
+            });

@@ -1,114 +1,96 @@
 #!/usr/bin/env bun
 
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { preparePrompt, type PreparePromptInput } from "../src/prepare-prompt";
-import { unlink, writeFile, readFile, stat } from "fs/promises";
+import {
+  preparePrompt,
+  createManualTestPrompt,
+  type PreparePromptConfig,
+} from "../src/prepare-prompt";
+import { unlink, readFile, stat, mkdir, writeFile } from "fs/promises";
+import { join } from "path";
+
+// Mock getTaskById
+const mockTask = {
+  id: "task-1",
+  title: "Test Task",
+  description: "Test task description",
+  completed: false,
+  requirements: [],
+  subtasks: [],
+};
 
 describe("preparePrompt integration tests", () => {
   beforeEach(async () => {
+    // Create mock spec directory
+    const specDir = "/tmp/test-spec";
     try {
-      await unlink("/tmp/claude-action/prompt.txt");
+      await mkdir(specDir, { recursive: true });
+      // Create a mock tasks.md file
+      await writeFile(
+        join(specDir, "tasks.md"),
+        `# Tasks\n\n## ${mockTask.title}\nID: ${mockTask.id}\n${mockTask.description}`,
+      );
     } catch {
-      // Ignore if file doesn't exist
+      // Ignore if already exists
     }
   });
 
   afterEach(async () => {
+    // Clean up temp files
     try {
-      await unlink("/tmp/claude-action/prompt.txt");
+      await unlink(`/tmp/prompt-${mockTask.id}.txt`);
+      await unlink(`/tmp/prompt-test-${mockTask.id}.txt`);
     } catch {
-      // Ignore if file doesn't exist
+      // Ignore if files don't exist
     }
   });
 
-  test("should create temporary prompt file when only prompt is provided", async () => {
-    const input: PreparePromptInput = {
-      prompt: "This is a test prompt",
-      promptFile: "",
+  test("should create temporary prompt file for task", async () => {
+    const config: PreparePromptConfig = {
+      specPath: "/tmp/test-spec",
+      taskId: "task-1",
     };
 
-    const config = await preparePrompt(input);
+    const promptPath = await preparePrompt(config);
 
-    expect(config.path).toBe("/tmp/claude-action/prompt.txt");
-    expect(config.type).toBe("inline");
+    expect(promptPath).toBe(`/tmp/prompt-${mockTask.id}.txt`);
 
-    const fileContent = await readFile(config.path, "utf-8");
-    expect(fileContent).toBe("This is a test prompt");
+    const fileContent = await readFile(promptPath, "utf-8");
+    expect(fileContent).toContain("You are working on");
+    expect(fileContent).toContain(mockTask.title);
+    expect(fileContent).toContain(config.specPath);
 
-    const fileStat = await stat(config.path);
+    const fileStat = await stat(promptPath);
     expect(fileStat.size).toBeGreaterThan(0);
   });
 
-  test("should use existing file when promptFile is provided", async () => {
-    const testFilePath = "/tmp/test-prompt.txt";
-    await writeFile(testFilePath, "Prompt from file");
-
-    const input: PreparePromptInput = {
-      prompt: "",
-      promptFile: testFilePath,
+  test("should create manual test prompt file", async () => {
+    const config: PreparePromptConfig = {
+      specPath: "/tmp/test-spec",
+      taskId: "task-1",
     };
 
-    const config = await preparePrompt(input);
+    const promptPath = await createManualTestPrompt(config);
 
-    expect(config.path).toBe(testFilePath);
-    expect(config.type).toBe("file");
+    expect(promptPath).toBe(`/tmp/prompt-test-${mockTask.id}.txt`);
 
-    await unlink(testFilePath);
+    const fileContent = await readFile(promptPath, "utf-8");
+    expect(fileContent).toContain("Test");
+    expect(fileContent).toContain(mockTask.title);
+    expect(fileContent).toContain("MANUAL TESTING");
+
+    const fileStat = await stat(promptPath);
+    expect(fileStat.size).toBeGreaterThan(0);
   });
 
-  test("should fail when neither prompt nor promptFile is provided", async () => {
-    const input: PreparePromptInput = {
-      prompt: "",
-      promptFile: "",
+  test("should fail when task not found", async () => {
+    const config: PreparePromptConfig = {
+      specPath: "/tmp/test-spec",
+      taskId: "non-existent-task",
     };
 
-    await expect(preparePrompt(input)).rejects.toThrow(
-      "Neither 'prompt' nor 'prompt_file' was provided",
+    await expect(preparePrompt(config)).rejects.toThrow(
+      "Task with ID non-existent-task not found in spec /tmp/test-spec",
     );
-  });
-
-  test("should fail when promptFile points to non-existent file", async () => {
-    const input: PreparePromptInput = {
-      prompt: "",
-      promptFile: "/tmp/non-existent-file.txt",
-    };
-
-    await expect(preparePrompt(input)).rejects.toThrow(
-      "Prompt file '/tmp/non-existent-file.txt' does not exist.",
-    );
-  });
-
-  test("should fail when prompt is empty", async () => {
-    const emptyFilePath = "/tmp/empty-prompt.txt";
-    await writeFile(emptyFilePath, "");
-
-    const input: PreparePromptInput = {
-      prompt: "",
-      promptFile: emptyFilePath,
-    };
-
-    await expect(preparePrompt(input)).rejects.toThrow("Prompt file is empty");
-
-    try {
-      await unlink(emptyFilePath);
-    } catch {
-      // Ignore cleanup errors
-    }
-  });
-
-  test("should fail when both prompt and promptFile are provided", async () => {
-    const testFilePath = "/tmp/test-prompt.txt";
-    await writeFile(testFilePath, "Prompt from file");
-
-    const input: PreparePromptInput = {
-      prompt: "This should cause an error",
-      promptFile: testFilePath,
-    };
-
-    await expect(preparePrompt(input)).rejects.toThrow(
-      "Both 'prompt' and 'prompt_file' were provided. Please specify only one.",
-    );
-
-    await unlink(testFilePath);
   });
 });

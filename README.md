@@ -9,6 +9,7 @@ This repository is an automated mirror of the `base-action` directory from [anth
 - 📖 [View documentation](https://github.com/anthropics/claude-code-action#readme)
 
 ---
+
 # Claude Code Base Action
 
 This GitHub Action allows you to run [Claude Code](https://www.anthropic.com/claude-code) within your GitHub Actions workflows. You can use this to build any custom workflow on top of Claude Code.
