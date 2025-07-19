@@ -171,7 +171,7 @@ jobs:
 
       - name: Execute USTA
         if: steps.parse-trigger.outputs.is_fork != 'true' && steps.validate-spec.outputs.spec_exists == 'true'
-        uses: ./
+        uses: AhmetHuseyinDok/usta-action@main
         with:
           spec_name: ${{ steps.parse-trigger.outputs.spec_name }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}

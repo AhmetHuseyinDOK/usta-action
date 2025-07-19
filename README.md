@@ -16,6 +16,30 @@ This GitHub Action allows you to run [Claude Code](https://www.anthropic.com/cla
 
 For simply tagging @claude in issues and PRs out of the box, [check out the Claude Code action and GitHub app](https://github.com/anthropics/claude-code-action).
 
+## 🆕 USTA: Automated Specification Execution
+
+This action includes **USTA** (Automated Task Execution), a powerful system that executes structured specifications with automatic task progression, testing, and git integration. USTA can be triggered via PR comments for seamless code development workflows.
+
+### Key Features
+
+- **📋 Spec-Driven Development**: Define requirements, design, and tasks in structured markdown files
+- **🔄 Automatic Task Progression**: Sequential execution with retry logic and validation
+- **🧪 Built-in Testing**: Automatic validation of each completed task
+- **📝 Real-time Updates**: Live progress tracking via PR comments
+- **🚀 Git Integration**: Automatic commits and pushes to PR branches
+- **🛡️ Error Recovery**: Rollback on failures with comprehensive error handling
+
+### Quick Start with USTA
+
+1. **Copy the workflow** from `examples/usta-pr-trigger.yml` to `.github/workflows/`
+2. **Create a spec** in `.usta/specs/<spec-name>/` with:
+   - `requirements.md` - Feature requirements
+   - `design.md` - Technical design
+   - `tasks.md` - Implementation tasks
+3. **Trigger execution** by commenting `@usta <spec-name>` in any PR
+
+See the [Examples section](#examples) for complete setup instructions.
+
 ## Usage
 
 Add the following to your workflow file:
@@ -118,6 +142,8 @@ Add the following to your workflow file:
 | `use_bedrock`             | Use Amazon Bedrock with OIDC authentication instead of direct Anthropic API                       | No       | 'false'                      |
 | `use_vertex`              | Use Google Vertex AI with OIDC authentication instead of direct Anthropic API                     | No       | 'false'                      |
 | `use_node_cache`          | Whether to use Node.js dependency caching (set to true only for Node.js projects with lock files) | No       | 'false'                      |
+| `spec_name`               | Name or identifier for the USTA specification to execute                                           | No       | ''                           |
+| `enable_logging`          | Enable raw JSON logging of Claude Code execution to .usta/.logs directory                         | No       | 'false'                      |
 
 \*Either `prompt` or `prompt_file` must be provided, but not both.
 
@@ -395,6 +421,85 @@ jobs:
 ```
 
 Check out additional examples in [`./examples`](./examples).
+
+## Examples
+
+This repository includes comprehensive examples demonstrating different use cases:
+
+### 🤖 USTA PR Trigger (`examples/usta-pr-trigger.yml`)
+
+Execute USTA specifications automatically when `@usta <specname>` is mentioned in PR comments or descriptions.
+
+**Features:**
+- 🎯 **Smart Triggering**: Responds to `@usta <spec-name>` mentions in PRs
+- 💬 **Real-time Updates**: Live progress tracking via comment updates  
+- 🔄 **Automatic Execution**: Sequential task execution with retry logic
+- 🚀 **Git Integration**: Pushes changes to PR branch after each task
+- 🛡️ **Error Handling**: Graceful failure handling with detailed logs
+- 🍴 **Fork-Safe**: Handles fork PRs with security-compliant restrictions
+
+**Setup:**
+1. Copy `examples/usta-pr-trigger.yml` to `.github/workflows/`
+2. Add `ANTHROPIC_API_KEY` to repository secrets
+3. Create specs in `.usta/specs/<spec-name>/` directory structure
+
+**Usage:**
+```
+@usta user-authentication
+@usta checkout-flow  
+@usta api-endpoints Please implement the REST API
+```
+
+### 📋 Issue Triage (`examples/issue-triage.yml`)
+
+Automatically analyze and label GitHub issues using Claude's understanding.
+
+**Features:**
+- 🏷️ **Smart Labeling**: Analyzes issue content and applies appropriate labels
+- 🔍 **Context Aware**: Uses repository history and similar issues for better categorization
+- 🚫 **Non-intrusive**: Only applies labels, doesn't post comments
+- ⚡ **Fast Processing**: Runs within minutes of issue creation
+
+### 🏗️ USTA Specification Structure
+
+USTA uses a structured approach to define and execute development tasks:
+
+```
+.usta/specs/<spec-name>/
+├── requirements.md    # User stories and acceptance criteria
+├── design.md         # Technical architecture and approach
+└── tasks.md          # Implementation tasks with checkboxes
+```
+
+**Example `tasks.md` format:**
+```markdown
+# Implementation Plan
+
+## Core Features
+- [ ] 1. Create user registration endpoint
+  - Add email validation
+  - Hash passwords securely
+  - _Requirements: 1.1, 1.2_
+
+- [ ] 2. Implement login functionality
+  - JWT token generation
+  - Session management
+  - _Requirements: 2.1, 2.2_
+
+## Testing
+- [ ] 3. Add integration tests
+  - Test registration flow
+  - Test authentication
+```
+
+**Workflow:**
+1. **Trigger**: Comment `@usta <spec-name>` in a PR
+2. **Response**: Immediate acknowledgment ("Tamamdır hacım bi bakayım.")
+3. **Execution**: Sequential task execution with real-time updates
+4. **Validation**: Each task is tested before marking complete
+5. **Integration**: Changes pushed to PR branch automatically
+
+For complete setup instructions and advanced usage, see [`examples/README.md`](./examples/README.md).
 
 ## Using Cloud Providers
 
