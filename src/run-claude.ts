@@ -23,6 +23,7 @@ export type ClaudeOptions = {
   claudeEnv?: string;
   fallbackModel?: string;
   timeoutMinutes?: string;
+  dangerouslySkipPermissions?: boolean;
   enableRawJsonLogs?: boolean;
   outputCapture?: OutputCapture;
   logContext?: {
@@ -103,6 +104,9 @@ export function prepareRunConfig(
   }
   if (options.fallbackModel) {
     claudeArgs.push("--fallback-model", options.fallbackModel);
+  }
+  if (options.dangerouslySkipPermissions) {
+    claudeArgs.push("--dangerously-skip-permissions");
   }
   if (options.timeoutMinutes) {
     const timeoutMinutesNum = parseInt(options.timeoutMinutes, 10);

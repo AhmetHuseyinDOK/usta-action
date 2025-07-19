@@ -111,6 +111,7 @@ export async function runUsta() {
             appendSystemPrompt: process.env.INPUT_APPEND_SYSTEM_PROMPT,
             claudeEnv: process.env.INPUT_CLAUDE_ENV,
             fallbackModel: process.env.INPUT_FALLBACK_MODEL,
+            dangerouslySkipPermissions: process.env.INPUT_DANGEROUSLY_SKIP_PERMISSIONS === "true",
             enableRawJsonLogs: enableLogging,
             logContext: enableLogging
               ? {
@@ -146,6 +147,7 @@ export async function runUsta() {
             appendSystemPrompt: process.env.INPUT_APPEND_SYSTEM_PROMPT,
             claudeEnv: process.env.INPUT_CLAUDE_ENV,
             fallbackModel: process.env.INPUT_FALLBACK_MODEL,
+            dangerouslySkipPermissions: process.env.INPUT_DANGEROUSLY_SKIP_PERMISSIONS === "true",
             enableRawJsonLogs: enableLogging,
             outputCapture: testCapture,
             logContext: enableLogging

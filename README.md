@@ -117,7 +117,17 @@ Add the following to your workflow file:
     prompt: "Update dependencies"
     allowed_tools: "Bash(git:*),View,GlobTool,GrepTool,BatchTool"
     claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+# Skipping permissions (use with extreme caution)
+- name: Run Claude Code without tool restrictions
+  uses: anthropics/claude-code-base-action@beta
+  with:
+    prompt: "Analyze the codebase and suggest improvements"
+    dangerously_skip_permissions: "true"
+    anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
+
+⚠️ **Security Warning**: The `dangerously_skip_permissions` option bypasses all tool safety restrictions and should only be used in controlled environments with trusted prompts. This allows Claude to execute any command or access any file without restrictions.
 
 ## Inputs
 
@@ -144,6 +154,7 @@ Add the following to your workflow file:
 | `use_node_cache`          | Whether to use Node.js dependency caching (set to true only for Node.js projects with lock files) | No       | 'false'                      |
 | `spec_name`               | Name or identifier for the USTA specification to execute                                           | No       | ''                           |
 | `enable_logging`          | Enable raw JSON logging of Claude Code execution to .usta/.logs directory                         | No       | 'false'                      |
+| `dangerously_skip_permissions` | Skip permission checks and allow all tools (use with caution)                                | No       | 'false'                      |
 
 \*Either `prompt` or `prompt_file` must be provided, but not both.
 

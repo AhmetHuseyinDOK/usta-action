@@ -3,7 +3,9 @@ description: Execute USTA specs when @usta is mentioned in PR comments or descri
 
 on:
   issue_comment:
-    types: [created, edited]
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
   pull_request:
     types: [opened, edited, synchronize]
 
@@ -13,12 +15,11 @@ permissions:
 
 jobs:
   usta-execution:
-    # Only run on PRs and when @usta is mentioned
+    # Only run when @usta is mentioned
     if: |
-      github.event.pull_request != null && (
-        contains(github.event.pull_request.body, '@usta') ||
-        (github.event.comment != null && contains(github.event.comment.body, '@usta'))
-      )
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null && contains(github.event.comment.body, '@usta')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@usta')) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.body, '@usta'))
     runs-on: ubuntu-latest
     timeout-minutes: 3660
     
@@ -109,74 +110,15 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Validate spec exists
-        id: validate-spec
-        if: steps.parse-trigger.outputs.is_fork != 'true'
-        run: |
-          SPEC_PATH=".usta/specs/${{ steps.parse-trigger.outputs.spec_name }}"
-          
-          if [ ! -d "$SPEC_PATH" ]; then
-            echo "spec_exists=false" >> $GITHUB_OUTPUT
-            echo "error_message=Spec directory not found: $SPEC_PATH" >> $GITHUB_OUTPUT
-          elif [ ! -f "$SPEC_PATH/tasks.md" ]; then
-            echo "spec_exists=false" >> $GITHUB_OUTPUT
-            echo "error_message=tasks.md not found in spec: $SPEC_PATH" >> $GITHUB_OUTPUT
-          else
-            echo "spec_exists=true" >> $GITHUB_OUTPUT
-            echo "Spec validated: $SPEC_PATH"
-          fi
-
-      - name: Update comment with spec validation error
-        if: steps.parse-trigger.outputs.is_fork != 'true' && steps.validate-spec.outputs.spec_exists == 'false'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const comment = `🤖 **Tamamdır hacım bi bakayım.**
-            
-            **Spec:** \`${{ steps.parse-trigger.outputs.spec_name }}\`
-            **Status:** ❌ **Error** - ${{ steps.validate-spec.outputs.error_message }}
-            
-            **Available specs:**
-            ${await (async () => {
-              try {
-                const { data: tree } = await github.rest.git.getTree({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  tree_sha: context.sha,
-                  recursive: true
-                });
-                
-                const specs = tree.tree
-                  .filter(item => item.path && item.path.startsWith('.usta/specs/') && item.path.endsWith('/tasks.md'))
-                  .map(item => item.path.replace('.usta/specs/', '').replace('/tasks.md', ''))
-                  .sort();
-                
-                return specs.length > 0 ? specs.map(spec => \`- \\\`\${spec}\\\`\`).join('\\n') : '- No specs found';
-              } catch (error) {
-                return '- Error listing specs';
-              }
-            })()}
-            
-            ---
-            *Execution stopped due to validation error.*`;
-            
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: ${{ steps.initial-response.outputs.comment_id }},
-              body: comment
-            });
-            
-            core.setFailed('Spec validation failed');
-
       - name: Execute USTA
-        if: steps.parse-trigger.outputs.is_fork != 'true' && steps.validate-spec.outputs.spec_exists == 'true'
+        if: steps.parse-trigger.outputs.is_fork != 'true'
         uses: AhmetHuseyinDok/usta-action@main
         with:
           spec_name: ${{ steps.parse-trigger.outputs.spec_name }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           timeout_minutes: "3600"
           enable_logging: "true"
+          dangerously_skip_permissions: "true"
         env:
           USTA_PR_MODE: "true"
           USTA_PR_NUMBER: ${{ steps.parse-trigger.outputs.pr_number }}
@@ -185,7 +127,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update comment on success
-        if: success() && steps.parse-trigger.outputs.is_fork != 'true' && steps.validate-spec.outputs.spec_exists == 'true'
+        if: success() && steps.parse-trigger.outputs.is_fork != 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -212,7 +154,7 @@ jobs:
             });
 
       - name: Update comment on failure
-        if: failure() && steps.parse-trigger.outputs.is_fork != 'true' && steps.validate-spec.outputs.spec_exists == 'true'
+        if: failure() && steps.parse-trigger.outputs.is_fork != 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -224,8 +166,8 @@ jobs:
             The USTA execution encountered an error. Please check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
             
             **Common issues:**
-            - Spec file syntax errors
-            - Task implementation failures
+            - Spec not found or invalid structure
+            - Task implementation failures  
             - Test validation failures
             - Authentication or permission issues
             
