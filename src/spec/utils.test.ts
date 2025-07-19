@@ -293,10 +293,9 @@ describe("markTaskAsCompleted", () => {
     );
   });
 
-  test("should throw error for already completed task", async () => {
-    expect(markTaskAsCompleted(TEST_SPEC_PATH, "2")).rejects.toThrow(
-      /Task with ID '2' not found or already completed/,
-    );
+  test("should not fail for already completed task", async () => {
+    // This should not throw an error, but gracefully handle the already completed task
+    await expect(markTaskAsCompleted(TEST_SPEC_PATH, "2")).resolves.toBeUndefined();
   });
 });
 

@@ -258,31 +258,49 @@ export async function markTaskAsCompleted(
 
   const lines = content.split("\n");
   let modified = false;
+  let taskFound = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (!line) continue;
 
-    const taskMatch = line.match(/^- \[\s*\s*\] (.+)$/);
+    // Check for both incomplete and completed tasks
+    const incompleteMatch = line.match(/^- \[\s*\s*\] (.+)$/);
+    const completedMatch = line.match(/^- \[\s*x\s*\] (.+)$/);
 
+    const taskMatch = incompleteMatch || completedMatch;
+    
     if (taskMatch && taskMatch[1]) {
       const taskTitle = taskMatch[1];
       const idMatch = taskTitle.match(/^(\d+)\./);
       const taskIdFromTitle = idMatch ? idMatch[1] : taskTitle.split(" ")[0];
 
       if (taskIdFromTitle === taskId || taskTitle.includes(taskId)) {
-        lines[i] = line.replace(/- \[\s*\s*\]/, "- [x]");
-        modified = true;
-        break;
+        taskFound = true;
+        
+        if (completedMatch) {
+          // Task is already completed
+          console.log(`✅ Task '${taskId}' is already marked as completed`);
+          break;
+        } else if (incompleteMatch) {
+          // Mark the incomplete task as completed
+          lines[i] = line.replace(/- \[\s*\s*\]/, "- [x]");
+          modified = true;
+          console.log(`✅ Marked task '${taskId}' as completed`);
+          break;
+        }
       }
     }
   }
 
-  if (!modified) {
-    throw new Error(`Task with ID '${taskId}' not found or already completed`);
+  if (!taskFound) {
+    throw new Error(`Task with ID '${taskId}' not found in tasks.md`);
   }
 
-  await fs.writeFile(tasksPath, lines.join("\n"), "utf-8");
+  // Only write the file if we made changes
+  if (modified) {
+    await fs.writeFile(tasksPath, lines.join("\n"), "utf-8");
+  }
 }
 
 export async function getAllTasks(specPath: string): Promise<Task[]> {
