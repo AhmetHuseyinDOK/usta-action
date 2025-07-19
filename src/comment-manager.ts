@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import type { PRContext } from "./pr-context";
+import type { Task } from "./spec/utils";
 
 export interface TaskProgress {
   taskId: string;
@@ -216,12 +217,12 @@ export class CommentManager {
 export async function createCommentManager(
   context: PRContext, 
   specName: string, 
-  taskTitles: string[] = []
+  allTasks: Task[] = []
 ): Promise<CommentManager> {
-  const tasks: TaskProgress[] = taskTitles.map((title, index) => ({
-    taskId: (index + 1).toString(),
-    title,
-    status: 'pending'
+  const tasks: TaskProgress[] = allTasks.map((task) => ({
+    taskId: task.id,
+    title: task.title,
+    status: task.completed ? 'completed' : 'pending'
   }));
 
   const manager = new CommentManager(context, specName, tasks);

@@ -67,10 +67,9 @@ export async function runUsta() {
 
     // Get all tasks to set up comment manager
     const allTasks = await getAllTasks(specPath);
-    const taskTitles = allTasks.map(task => task.title);
     
     // Create comment manager for PR updates
-    const commentManager = await createCommentManager(prContext, specName, taskTitles);
+    const commentManager = await createCommentManager(prContext, specName, allTasks);
 
     let task: Task | null = await getNextTask(specPath);
     while (task != null) {

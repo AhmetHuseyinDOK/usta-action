@@ -58,7 +58,11 @@ describe("PR Workflow Integration", () => {
         isEnabled: false,
       };
       
-      const manager = await createCommentManager(context, "test-spec", ["Task 1", "Task 2"]);
+      const tasks = [
+        { id: "1", title: "Task 1", description: "", completed: false, requirements: [], subtasks: [] },
+        { id: "2", title: "Task 2", description: "", completed: false, requirements: [], subtasks: [] }
+      ];
+      const manager = await createCommentManager(context, "test-spec", tasks);
       
       expect(manager).toBeDefined();
       // Should not throw when updating comment (should be no-op)
@@ -72,7 +76,10 @@ describe("PR Workflow Integration", () => {
         isEnabled: false,
       };
       
-      const manager = await createCommentManager(context, "test-spec", ["Task 1"]);
+      const tasks = [
+        { id: "1", title: "Task 1", description: "", completed: false, requirements: [], subtasks: [] }
+      ];
+      const manager = await createCommentManager(context, "test-spec", tasks);
       
       // Should not throw when updating task status
       expect(() => {
