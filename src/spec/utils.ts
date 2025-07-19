@@ -275,7 +275,7 @@ export async function markTaskAsCompleted(
       const idMatch = taskTitle.match(/^(\d+)\./);
       const taskIdFromTitle = idMatch ? idMatch[1] : taskTitle.split(" ")[0];
 
-      if (taskIdFromTitle === taskId || taskTitle.includes(taskId)) {
+      if (taskIdFromTitle === taskId) {
         taskFound = true;
         
         if (completedMatch) {
@@ -337,3 +337,4 @@ export async function getTaskProgress(
 
   return { completed, total, percentage };
 }
+
