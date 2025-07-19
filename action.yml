@@ -6,14 +6,6 @@ branding:
 
 inputs:
   # Claude Code arguments
-  prompt:
-    description: "The prompt to send to Claude Code (mutually exclusive with prompt_file)"
-    required: false
-    default: ""
-  prompt_file:
-    description: "Path to a file containing the prompt to send to Claude Code (mutually exclusive with prompt)"
-    required: false
-    default: ""
   allowed_tools:
     description: "Comma-separated list of allowed tools for Claude Code to use"
     required: false
@@ -53,6 +45,11 @@ inputs:
     required: false
   claude_env:
     description: "Custom environment variables to pass to Claude Code execution (YAML multiline format)"
+    required: false
+    default: ""
+
+  spec_name:
+    description: "Name or identifier for the specification being implemented"
     required: false
     default: ""
 
@@ -131,8 +128,6 @@ runs:
         # Model configuration
         CLAUDE_CODE_ACTION: "1"
         ANTHROPIC_MODEL: ${{ inputs.model || inputs.anthropic_model }}
-        INPUT_PROMPT: ${{ inputs.prompt }}
-        INPUT_PROMPT_FILE: ${{ inputs.prompt_file }}
         INPUT_ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
         INPUT_DISALLOWED_TOOLS: ${{ inputs.disallowed_tools }}
         INPUT_MAX_TURNS: ${{ inputs.max_turns }}
@@ -143,6 +138,7 @@ runs:
         INPUT_TIMEOUT_MINUTES: ${{ inputs.timeout_minutes }}
         INPUT_CLAUDE_ENV: ${{ inputs.claude_env }}
         INPUT_FALLBACK_MODEL: ${{ inputs.fallback_model }}
+        INPUT_SPEC_NAME: ${{ inputs.spec_name }}
 
         # Provider configuration
         ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
