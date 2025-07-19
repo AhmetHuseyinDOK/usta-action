@@ -70,6 +70,9 @@ export async function runUsta() {
     
     // Create comment manager for PR updates
     const commentManager = await createCommentManager(prContext, specName, allTasks);
+    
+    // Start periodic updates every minute
+    commentManager.startPeriodicUpdates();
 
     let task: Task | null = await getNextTask(specPath);
     while (task != null) {
@@ -195,7 +198,8 @@ export async function runUsta() {
           `\n💥 Failed to complete task "${task.title}" after 3 attempts`,
         );
         
-        // Update comment to show task failed
+        // Stop periodic updates and update comment to show task failed
+        commentManager.stopPeriodicUpdates();
         commentManager.updateTaskStatus(task.id, 'failed');
         commentManager.setOverallStatus('failed');
         await commentManager.updateComment();
@@ -210,7 +214,8 @@ export async function runUsta() {
 
     console.log("\n✅ All tasks completed!");
     
-    // Update comment with final success status
+    // Stop periodic updates and update comment with final success status
+    commentManager.stopPeriodicUpdates();
     commentManager.setOverallStatus('completed');
     await commentManager.updateComment();
   } catch (error) {

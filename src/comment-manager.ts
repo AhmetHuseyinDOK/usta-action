@@ -22,6 +22,7 @@ export interface CommentState {
 export class CommentManager {
   private context: PRContext;
   private state: CommentState;
+  private updateInterval?: NodeJS.Timeout;
 
   constructor(context: PRContext, specName: string, tasks: TaskProgress[] = []) {
     this.context = context;
@@ -75,7 +76,20 @@ export class CommentManager {
         break;
     }
 
-    let comment = `🤖 **Tamamdır hacım bi bakayım.**
+    // Get incomplete task count
+    const incompleteTasks = tasks.filter(t => t.status !== 'completed').length;
+    
+    // Use different greeting based on status
+    let greeting = '';
+    if (overallStatus === 'running' && incompleteTasks > 0) {
+      greeting = `🤖 **Hacı abi ${incompleteTasks} iş kalmış. Hallediyorum... Bu iş bizde!**`;
+    } else if (overallStatus === 'completed') {
+      greeting = `🤖 **Tüm işler tamamlandı hacı abi!**`;
+    } else if (overallStatus === 'failed') {
+      greeting = `🤖 **Bir sorun çıktı hacı abi!**`;
+    }
+
+    let comment = `${greeting}
 
 **Spec:** \`${specName}\`
 **Status:** ${statusEmoji} **${statusText}**
@@ -85,7 +99,7 @@ export class CommentManager {
     if (tasks.length > 0) {
       comment += "## Task Progress\n\n";
       
-      tasks.forEach((task, index) => {
+      tasks.forEach((task) => {
         let taskEmoji = '';
         let taskStatus = '';
         
@@ -112,7 +126,7 @@ export class CommentManager {
             break;
         }
         
-        comment += `${index + 1}. ${taskEmoji} **${task.title}** - ${taskStatus}\n`;
+        comment += `${taskEmoji} **${task.title}** - ${taskStatus}\n`;
       });
       
       comment += "\n";
@@ -165,6 +179,32 @@ export class CommentManager {
       console.log(`💬 Updated comment with current progress`);
     } catch (error) {
       console.error(`Failed to update comment: ${error}`);
+    }
+  }
+
+  startPeriodicUpdates(intervalMs: number = 60000): void {
+    if (!this.context.isEnabled || this.updateInterval) {
+      return;
+    }
+
+    console.log(`🔄 Starting periodic comment updates every ${intervalMs / 1000} seconds`);
+    
+    // Update immediately, then start interval
+    this.updateComment().catch(console.error);
+    
+    this.updateInterval = setInterval(() => {
+      // Only update if we're still running
+      if (this.state.overallStatus === 'running') {
+        this.updateComment().catch(console.error);
+      }
+    }, intervalMs);
+  }
+
+  stopPeriodicUpdates(): void {
+    if (this.updateInterval) {
+      console.log(`🛑 Stopping periodic comment updates`);
+      clearInterval(this.updateInterval);
+      this.updateInterval = undefined;
     }
   }
 
