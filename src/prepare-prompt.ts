@@ -49,6 +49,19 @@ You must the task using <DEVELOPER PERSPECTIVE>
 - Build/Run the project
 - Test the features end-to-end using <MANUAL TESTING>
 </DEVELOPER PERSPECTIVE>
+
+<MANUAL TESTING>
+It is testing from a user's perspective. So that user can use the feature right away.
+
+- If the task is a UI feature, utilize playwright mcp to test it
+  - If it needs access to a protected route login or create a new account
+  - Take screenshots when needed
+  - Test the feature as a user would
+- If the task is a Server related feature, use the commands like "curl" to test it
+  - If it needs access to a protected route, create a new user or use an existing one to get a token
+  - Verify that the API works as expected
+</MANUAL TESTING>
+
 current date: ${new Date().toISOString()}
   `;
   return crateTemporaryPromptFile(prompt, "test-" + task.id);
