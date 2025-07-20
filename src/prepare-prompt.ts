@@ -38,7 +38,8 @@ export async function createManualTestPrompt(
   const prompt = `The coding agent has finished the task ${task.title} in ${config.specPath}.
   
 You must the task using <DEVELOPER PERSPECTIVE>
-- Respond with single "${__TEST_SUCCESS_PHARESE}" if the task is complete
+- Respond exactly with "${__TEST_SUCCESS_PHARESE}" if the task is complete
+- If the exact text of "${__TEST_SUCCESS_PHARESE}" is not found in your response, then the task will be considered as non-complete
 - Respond with the reason if the task is not complete
 
 <DEVELOPER PERSPECTIVE>
