@@ -8,7 +8,8 @@ export interface TaskProgress {
   status: 'pending' | 'working' | 'testing' | 'completed' | 'failed';
   startTime?: Date;
   endTime?: Date;
-  attempt?: number;
+  attempt: number;
+  completedOnAttempt?: number;
 }
 
 export interface CommentState {
@@ -38,11 +39,18 @@ export class CommentManager {
     const task = this.state.tasks.find(t => t.taskId === taskId);
     if (task) {
       task.status = status;
-      if (attempt) task.attempt = attempt;
+      if (attempt !== undefined) {
+        task.attempt = attempt;
+      }
       
       if (status === 'working' && !task.startTime) {
         task.startTime = new Date();
-      } else if ((status === 'completed' || status === 'failed') && !task.endTime) {
+      } else if (status === 'completed') {
+        if (!task.endTime) {
+          task.endTime = new Date();
+        }
+        task.completedOnAttempt = task.attempt || 1;
+      } else if (status === 'failed' && !task.endTime) {
         task.endTime = new Date();
       }
     }
@@ -118,7 +126,13 @@ export class CommentManager {
             break;
           case 'completed':
             taskEmoji = '✅';
-            taskStatus = 'Completed';
+            const attemptsText = task.completedOnAttempt && task.completedOnAttempt > 1 
+              ? ` (on attempt ${task.completedOnAttempt})` 
+              : '';
+            const duration = task.startTime && task.endTime 
+              ? ` - ${Math.round((task.endTime.getTime() - task.startTime.getTime()) / 1000)}s`
+              : '';
+            taskStatus = `Completed${attemptsText}${duration}`;
             break;
           case 'failed':
             taskEmoji = '❌';
@@ -133,11 +147,19 @@ export class CommentManager {
     }
 
     // Progress summary
-    const completedTasks = tasks.filter(t => t.status === 'completed').length;
+    const completedTasks = tasks.filter(t => t.status === 'completed');
     const totalTasks = tasks.length;
     
     if (totalTasks > 0) {
-      comment += `**Progress:** ${completedTasks}/${totalTasks} tasks completed\n\n`;
+      comment += `**Progress:** ${completedTasks.length}/${totalTasks} tasks completed\n`;
+      
+      // Add completion statistics
+      if (completedTasks.length > 0) {
+        const firstAttemptSuccess = completedTasks.filter(t => t.completedOnAttempt === 1).length;
+        const avgAttempts = completedTasks.reduce((sum, t) => sum + (t.completedOnAttempt || 1), 0) / completedTasks.length;
+        comment += `**Success Rate:** ${firstAttemptSuccess}/${completedTasks.length} on first attempt (${Math.round(avgAttempts * 10) / 10} avg attempts)\n`;
+      }
+      comment += `\n`;
     }
 
     // Duration
@@ -262,7 +284,9 @@ export async function createCommentManager(
   const tasks: TaskProgress[] = allTasks.map((task) => ({
     taskId: task.id,
     title: task.title,
-    status: task.completed ? 'completed' : 'pending'
+    status: task.completed ? 'completed' : 'pending',
+    attempt: 1,
+    completedOnAttempt: task.completed ? 1 : undefined
   }));
 
   const manager = new CommentManager(context, specName, tasks);
