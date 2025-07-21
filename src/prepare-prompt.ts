@@ -20,7 +20,23 @@ export async function preparePrompt(
 - Execute only ONE task at a time
 - Focus only on requested task, not others
 - Stop after completing task
+- after completing the task make sure it is usable via <MANUAL TESTING>
+- if it doesn't work, then fix the errors.
+<MANUAL TESTING>
+It is testing from a user's perspective. So that user can use the feature right away.
 
+- If the task is a UI feature, utilize playwright mcp to test it
+  - If it needs access to a protected route login or create a new account
+  - Take screenshots when needed
+  - Check console for errors using playwright.
+  - Make sure there is no console errors
+  - Test the feature as a user would
+  - If the task is not ready to be used by real users, then it is not complete
+- If the task is a Server related feature, use the commands like "curl" to test it
+  - If it needs access to a protected route, create a new user or use an existing one to get a token
+  - Verify that the API works as expected
+  - If the task is not ready to be used by real users, then it is not complete
+</MANUAL TESTING>
 current date: ${new Date().toISOString()}
   `;
   return crateTemporaryPromptFile(prompt, task.id);
@@ -56,6 +72,8 @@ It is testing from a user's perspective. So that user can use the feature right 
 - If the task is a UI feature, utilize playwright mcp to test it
   - If it needs access to a protected route login or create a new account
   - Take screenshots when needed
+  - Check console for errors using playwright.
+  - Make sure there is no console errors
   - Test the feature as a user would
   - If the task is not ready to be used by real users, then it is not complete
 - If the task is a Server related feature, use the commands like "curl" to test it
