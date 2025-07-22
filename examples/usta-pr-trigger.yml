@@ -78,7 +78,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const comment = `🤖 **Tamamdır hacım bi bakayım.**
+            const comment = `🛠️ **Tamamdır hacım bi bakayım.**
             
             **Spec:** \`${{ steps.parse-trigger.outputs.spec_name }}\`
             **Status:** 🔍 Checking spec and starting execution...
@@ -125,58 +125,3 @@ jobs:
           USTA_PR_BRANCH: ${{ steps.parse-trigger.outputs.pr_branch }}
           USTA_COMMENT_ID: ${{ steps.initial-response.outputs.comment_id }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update comment on success
-        if: success() && steps.parse-trigger.outputs.is_fork != 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const comment = `🤖 **Tamamdır hacım bi bakayım.**
-            
-            **Spec:** \`${{ steps.parse-trigger.outputs.spec_name }}\`
-            **Status:** ✅ **Completed Successfully**
-            
-            🎉 All tasks have been completed and changes have been pushed to this PR branch.
-            
-            **Next steps:**
-            - Review the changes in this PR
-            - Run any additional tests if needed
-            - Merge when ready
-            
-            ---
-            *USTA execution completed at $(date)*`;
-            
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: ${{ steps.initial-response.outputs.comment_id }},
-              body: comment
-            });
-
-      - name: Update comment on failure
-        if: failure() && steps.parse-trigger.outputs.is_fork != 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const comment = `🤖 **Tamamdır hacım bi bakayım.**
-            
-            **Spec:** \`${{ steps.parse-trigger.outputs.spec_name }}\`
-            **Status:** ❌ **Failed**
-            
-            The USTA execution encountered an error. Please check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
-            
-            **Common issues:**
-            - Spec not found or invalid structure
-            - Task implementation failures  
-            - Test validation failures
-            - Authentication or permission issues
-            
-            ---
-            *USTA execution failed at $(date)*`;
-            
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: ${{ steps.initial-response.outputs.comment_id }},
-              body: comment
-            });

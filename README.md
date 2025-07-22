@@ -437,7 +437,7 @@ Check out additional examples in [`./examples`](./examples).
 
 This repository includes comprehensive examples demonstrating different use cases:
 
-### 🤖 USTA PR Trigger (`examples/usta-pr-trigger.yml`)
+### 🛠️ USTA PR Trigger (`examples/usta-pr-trigger.yml`)
 
 Execute USTA specifications automatically when `@usta <specname>` is mentioned in PR comments or descriptions.
 

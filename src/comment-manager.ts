@@ -90,11 +90,11 @@ export class CommentManager {
     // Use different greeting based on status
     let greeting = '';
     if (overallStatus === 'running' && incompleteTasks > 0) {
-      greeting = `🤖 **Hacı abi ${incompleteTasks} iş kalmış. Hallediyorum... Bu iş bizde!**`;
+      greeting = `🛠️ **Hacı abi ${incompleteTasks} iş kalmış. Hallediyorum... Bu iş bizde!**`;
     } else if (overallStatus === 'completed') {
-      greeting = `🤖 **Tüm işler tamamlandı hacı abi!**`;
+      greeting = `🛠️ **Tüm işler tamamlandı hacı abi!**`;
     } else if (overallStatus === 'failed') {
-      greeting = `🤖 **Bir sorun çıktı hacı abi!**`;
+      greeting = `🛠️ **Bir sorun çıktı hacı abi!**`;
     }
 
     let comment = `${greeting}
@@ -130,7 +130,7 @@ export class CommentManager {
               ? ` (on attempt ${task.completedOnAttempt})` 
               : '';
             const duration = task.startTime && task.endTime 
-              ? ` - ${Math.round((task.endTime.getTime() - task.startTime.getTime()) / 1000)}s`
+              ? ` - ${Math.round((task.endTime.getTime() - task.startTime.getTime()) / (1000 * 60))} minutes`
               : '';
             taskStatus = `Completed${attemptsText}${duration}`;
             break;
